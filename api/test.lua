@@ -13,36 +13,42 @@ local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-
 local placeId = game.PlaceId
-local jobId = game.JobId
-_G.Keep_Job = _G.Keep_Job or {}
 
 local function SendWebhook(url, title, desc, color)
     if not url or url == "" then return end
     local data = {
-        ["embeds"] = {{
-            ["title"] = title,
-            ["description"] = desc,
-            ["color"] = color,
-            ["fields"] = {
-                {["name"] = "🧩 JobId", ["value"] = string.format("`%s`", jobId), ["inline"] = false},
-                {["name"] = "📜 Join Script", ["value"] = string.format("```lua\ngame:GetService('ReplicatedStorage').__ServerBrowser:InvokeServer('teleport','%s')\n```", jobId), ["inline"] = false},
-                {["name"] = "🧑‍💻 Players", ["value"] = string.format("`%d/%d`", #Players:GetPlayers(), Players.MaxPlayers), ["inline"] = true},
-                {["name"] = "🕒 Time", ["value"] = "`" .. Lighting.TimeOfDay .. "`", ["inline"] = true}
+        embeds = {{
+            title = title,
+            description = desc,
+            color = color,
+            fields = {
+                {
+                    name = "🧑‍💻 Players",
+                    value = string.format("`%d/%d`", #Players:GetPlayers(), Players.MaxPlayers),
+                    inline = true
+                },
+                {
+                    name = "🕒 Time",
+                    value = "`" .. Lighting.TimeOfDay .. "`",
+                    inline = true
+                }
             },
-            ["footer"] = {["text"] = "🌙 Saki Hub Tracker"},
-            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+            footer = { text = "🌙 Saki Hub" },
+            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }}
     }
-    pcall(function()
-        request({
-            Url = url,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode(data)
-        })
-    end)
+    request({
+        Url = url,
+        Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = HttpService:JSONEncode(data)
+    })
+end
+
+local function GetJoinScript(jobId)
+    return ("**JobId:** `%s`\n> game:GetService(\"ReplicatedStorage\").__ServerBrowser:InvokeServer(\"teleport\", \"%s\")")
+        :format(tostring(jobId), tostring(jobId))
 end
 
 local function GetMoonPhase()
@@ -58,18 +64,12 @@ local function GetMoonPhase()
     end
 end
 
-local function CheckMystic()
-    local map = Workspace:FindFirstChild("Map")
-    if map and map:FindFirstChild("MysticIsland") then
-        return true
-    end
-    return false
+local function Exists(name)
+    return Workspace.Enemies:FindFirstChild(name) or ReplicatedStorage:FindFirstChild(name)
 end
 
-local function Exists(name)
-    return Workspace.Enemies:FindFirstChild(name)
-        or ReplicatedStorage:FindFirstChild(name)
-        or Workspace:FindFirstChild(name)
+local function CheckMystic()
+    return Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("MysticIsland")
 end
 
 local World1, World2, World3 = false, false, false
@@ -81,42 +81,77 @@ elseif placeId == 7449423635 then
     World3 = true
 end
 
+local State = {
+    FullMoon = false,
+    NearMoon = false,
+    Mystic = false,
+    Indra = false,
+    Dough = false,
+    Darkbeard = false,
+    Captain = false
+}
+
 task.spawn(function()
     while task.wait(5) do
         pcall(function()
+            local jobid = game.JobId
             if World1 then return end
+
             if World3 then
                 local moon = GetMoonPhase()
                 local mystic = CheckMystic()
-                if moon == "Full" and not table.find(_G.Keep_Job, "Full_" .. jobId) then
-                    table.insert(_G.Keep_Job, "Full_" .. jobId)
-                    SendWebhook(Webhooks.FullMoon, "🌕 FULL MOON", "**A Full Moon has appeared!**", 65280)
+                local hasFull = (moon == "Full")
+                local hasNear = (moon == "Near")
+
+                if hasFull and not State.FullMoon then
+                    State.FullMoon = true
+                    SendWebhook(Webhooks.FullMoon, "🌕 FULL MOON", "**A Full Moon has appeared!**\n" .. GetJoinScript(jobid), 65280)
+                elseif not hasFull then
+                    State.FullMoon = false
                 end
-                if moon == "Near" and not table.find(_G.Keep_Job, "Near_" .. jobId) then
-                    table.insert(_G.Keep_Job, "Near_" .. jobId)
-                    SendWebhook(Webhooks.NearFullMoon, "🌖 4/5 MOON", "**The moon is nearly full!**", 16761035)
+
+                if hasNear and not State.NearMoon then
+                    State.NearMoon = true
+                    SendWebhook(Webhooks.NearFullMoon, "🌖 4/5 MOON", "**The moon is nearly full!**\n" .. GetJoinScript(jobid), 16761035)
+                elseif not hasNear then
+                    State.NearMoon = false
                 end
-                if mystic and not table.find(_G.Keep_Job, "Mystic_" .. jobId) then
-                    table.insert(_G.Keep_Job, "Mystic_" .. jobId)
-                    SendWebhook(Webhooks.MysticIsland, "🌴 MYSTIC ISLAND FOUND", "**Mystic Island has spawned!**", 3447003)
+
+                if mystic and not State.Mystic then
+                    State.Mystic = true
+                    SendWebhook(Webhooks.MysticIsland, "🌴 MYSTIC ISLAND FOUND", "**Mystic Island has spawned!**\n" .. GetJoinScript(jobid), 3447003)
+                elseif not mystic then
+                    State.Mystic = false
                 end
-                if Exists("rip_indra True Form") and not table.find(_G.Keep_Job, "Indra_" .. jobId) then
-                    table.insert(_G.Keep_Job, "Indra_" .. jobId)
-                    SendWebhook(Webhooks.RipIndra, "😈 RIP INDRA TRUE FORM", "**rip_indra True Form has appeared!**", 16711680)
+
+                if Exists("rip_indra True Form") and not State.Indra then
+                    State.Indra = true
+                    SendWebhook(Webhooks.RipIndra, "😈 RIP INDRA TRUE FORM", "**rip_indra True Form has appeared!**\n" .. GetJoinScript(jobid), 16711680)
+                elseif not Exists("rip_indra True Form") then
+                    State.Indra = false
                 end
-                if Exists("Dough King") and not table.find(_G.Keep_Job, "Dough_" .. jobId) then
-                    table.insert(_G.Keep_Job, "Dough_" .. jobId)
-                    SendWebhook(Webhooks.DoughKing, "🍩 DOUGH KING FOUND", "**Dough King has spawned!**", 16753920)
+
+                if Exists("Dough King") and not State.Dough then
+                    State.Dough = true
+                    SendWebhook(Webhooks.DoughKing, "🍩 DOUGH KING FOUND", "**Dough King has spawned!**\n" .. GetJoinScript(jobid), 16753920)
+                elseif not Exists("Dough King") then
+                    State.Dough = false
                 end
             end
+
             if World2 then
-                if Exists("Darkbeard") and not table.find(_G.Keep_Job, "Darkbeard_" .. jobId) then
-                    table.insert(_G.Keep_Job, "Darkbeard_" .. jobId)
-                    SendWebhook(Webhooks.Darkbeard, "💀 DARKBEARD FOUND", "**Darkbeard has spawned!**", 11184810)
+                if Exists("Darkbeard") and not State.Darkbeard then
+                    State.Darkbeard = true
+                    SendWebhook(Webhooks.Darkbeard, "💀 DARKBEARD FOUND", "**Darkbeard has spawned!**\n" .. GetJoinScript(jobid), 11184810)
+                elseif not Exists("Darkbeard") then
+                    State.Darkbeard = false
                 end
-                if Exists("Cursed Captain") and not table.find(_G.Keep_Job, "Captain_" .. jobId) then
-                    table.insert(_G.Keep_Job, "Captain_" .. jobId)
-                    SendWebhook(Webhooks.CursedCaptain, "⚓ CURSED CAPTAIN FOUND", "**Cursed Captain is here!**", 255)
+
+                if Exists("Cursed Captain") and not State.Captain then
+                    State.Captain = true
+                    SendWebhook(Webhooks.CursedCaptain, "⚓ CURSED CAPTAIN FOUND", "**Cursed Captain is here!**\n" .. GetJoinScript(jobid), 255)
+                elseif not Exists("Cursed Captain") then
+                    State.Captain = false
                 end
             end
         end)
