@@ -32,44 +32,48 @@ local MoonTextures = {
     Near = {"9709149052", "9709150401"}
 }
 
-local function SendWebhook(url, title, bossName, color)
+local function SendWebhook(url, title, bossName, color, timeRemaining)
     if not url or url == "" then return end
     
     local jobId = game.JobId
-    local currentTime = os.date("%H:%M:%S")
+    
+    local fields = {
+        {
+            name = "Time Of Day :",
+            value = Lighting.TimeOfDay,
+            inline = false
+        },
+        {
+            name = "Players :",
+            value = #Players:GetPlayers() .. "/" .. Players.MaxPlayers,
+            inline = false
+        },
+        {
+            name = "Job-Id :",
+            value = jobId,
+            inline = false
+        },
+        {
+            name = "Script :",
+            value = 'game:GetService("ReplicatedStorage").__ServerBrowser:InvokeServer("teleport", "'.. jobId ..'")',
+            inline = false
+        }
+    }
+    
+    if timeRemaining then
+        table.insert(fields, {
+            name = "Full Moon Time Remaining :",
+            value = timeRemaining,
+            inline = false
+        })
+    end
     
     local embed = {
         ["embeds"] = {{
             ["title"] = title,
             ["description"] = "**" .. bossName .. " đã xuất hiện!**",
             ["color"] = color,
-            ["fields"] = {
-                {
-                    name = "Time Of Day :",
-                    value = Lighting.TimeOfDay,
-                    inline = false
-                },
-                {
-                    name = "Players :",
-                    value = #Players:GetPlayers() .. "/" .. Players.MaxPlayers,
-                    inline = false
-                },
-                {
-                    name = "Job-Id :",
-                    value = jobId,
-                    inline = false
-                },
-                {
-                    name = "Script :",
-                    value = 'game:GetService("ReplicatedStorage").__ServerBrowser:InvokeServer("teleport", "'.. jobId ..'")',
-                    inline = false
-                },
-                {
-                    name = "Trạng thái :",
-                    value = "🟢",
-                    inline = false
-                }
-            },
+            ["fields"] = fields,
             ["footer"] = {
                 ["text"] = " Saki Hub | " .. os.date("%H:%M")
             }
@@ -110,6 +114,24 @@ local function GetMoonPhase()
     return "Other"
 end
 
+local function CalculateFullMoonTimeRemaining()
+    local currentTime = Lighting.ClockTime
+    local timeRemaining = 0
+    
+    if currentTime >= 21 then
+        timeRemaining = (30 - currentTime) * 60
+    elseif currentTime >= 6 then
+        timeRemaining = (21 - currentTime) * 60
+    else
+        timeRemaining = (21 - currentTime) * 60
+    end
+    
+    local minutes = math.floor(timeRemaining)
+    local seconds = math.floor((timeRemaining - minutes) * 60)
+    
+    return string.format("%02d:%02d", minutes, seconds)
+end
+
 local function EntityExists(entityName)
     return Workspace.Enemies:FindFirstChild(entityName) ~= nil or 
            ReplicatedStorage:FindFirstChild(entityName) ~= nil
@@ -124,22 +146,21 @@ local function CheckWorld3Events()
     local moonPhase = GetMoonPhase()
     local hasMysticIsland = CheckMysticIsland()
     
-    -- Moon Phase Checks
     if moonPhase == "Full" and not EventState.FullMoon then
         EventState.FullMoon = true
-        SendWebhook(Webhooks.FullMoon, " FULL MOON", "Full Moon", 65280)
+        local timeRemaining = CalculateFullMoonTimeRemaining()
+        SendWebhook(Webhooks.FullMoon, " FULL MOON", "Full Moon", 65280, timeRemaining)
     elseif moonPhase ~= "Full" then
         EventState.FullMoon = false
     end
     
     if moonPhase == "Near" and not EventState.NearMoon then
         EventState.NearMoon = true
-        SendWebhook(Webhooks.NearFullMoon, " 4/5 MOON", "Near Full Moon", 16761035)
+        SendWebhook(Webhooks.NearFullMoon, " Saki Hub", "Near Full Moon", 16761035)
     elseif moonPhase ~= "Near" then
         EventState.NearMoon = false
     end
     
-    -- Mystic Island Check
     if hasMysticIsland and not EventState.Mystic then
         EventState.Mystic = true
         SendWebhook(Webhooks.MysticIsland, " MYSTIC ISLAND", "Mystic Island", 3447003)
@@ -147,7 +168,6 @@ local function CheckWorld3Events()
         EventState.Mystic = false
     end
     
-    -- Boss Checks
     if EntityExists("rip_indra True Form") and not EventState.Indra then
         EventState.Indra = true
         SendWebhook(Webhooks.RipIndra, " RIP INDRA", "Rip Indra True Form", 16711680)
@@ -179,7 +199,6 @@ local function CheckWorld2Events()
     end
 end
 
--- Main monitoring loop
 task.spawn(function()
     while task.wait(5) do
         if IsWorld1 then continue end
