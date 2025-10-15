@@ -127,14 +127,14 @@ local function CheckWorld3Events()
     -- Moon Phase Checks
     if moonPhase == "Full" and not EventState.FullMoon then
         EventState.FullMoon = true
-        SendWebhook(Webhooks.FullMoon, "🌕 FULL MOON", "Full Moon", 65280)
+        SendWebhook(Webhooks.FullMoon, " FULL MOON", "Full Moon", 65280)
     elseif moonPhase ~= "Full" then
         EventState.FullMoon = false
     end
     
     if moonPhase == "Near" and not EventState.NearMoon then
         EventState.NearMoon = true
-        SendWebhook(Webhooks.NearFullMoon, "🌖 4/5 MOON", "Near Full Moon", 16761035)
+        SendWebhook(Webhooks.NearFullMoon, " 4/5 MOON", "Near Full Moon", 16761035)
     elseif moonPhase ~= "Near" then
         EventState.NearMoon = false
     end
@@ -142,7 +142,7 @@ local function CheckWorld3Events()
     -- Mystic Island Check
     if hasMysticIsland and not EventState.Mystic then
         EventState.Mystic = true
-        SendWebhook(Webhooks.MysticIsland, "🌴 MYSTIC ISLAND", "Mystic Island", 3447003)
+        SendWebhook(Webhooks.MysticIsland, " MYSTIC ISLAND", "Mystic Island", 3447003)
     elseif not hasMysticIsland then
         EventState.Mystic = false
     end
@@ -150,14 +150,14 @@ local function CheckWorld3Events()
     -- Boss Checks
     if EntityExists("rip_indra True Form") and not EventState.Indra then
         EventState.Indra = true
-        SendWebhook(Webhooks.RipIndra, "😈 RIP INDRA", "Rip Indra True Form", 16711680)
+        SendWebhook(Webhooks.RipIndra, " RIP INDRA", "Rip Indra True Form", 16711680)
     elseif not EntityExists("rip_indra True Form") then
         EventState.Indra = false
     end
     
     if EntityExists("Dough King") and not EventState.Dough then
         EventState.Dough = true
-        SendWebhook(Webhooks.DoughKing, "🍩 DOUGH KING", "Dough King", 16753920)
+        SendWebhook(Webhooks.DoughKing, " DOUGH KING", "Dough King", 16753920)
     elseif not EntityExists("Dough King") then
         EventState.Dough = false
     end
@@ -166,14 +166,14 @@ end
 local function CheckWorld2Events()
     if EntityExists("Darkbeard") and not EventState.Darkbeard then
         EventState.Darkbeard = true
-        SendWebhook(Webhooks.Darkbeard, "💀 DARKBEARD", "Darkbeard", 11184810)
+        SendWebhook(Webhooks.Darkbeard, " DARKBEARD", "Darkbeard", 11184810)
     elseif not EntityExists("Darkbeard") then
         EventState.Darkbeard = false
     end
     
     if EntityExists("Cursed Captain") and not EventState.Captain then
         EventState.Captain = true
-        SendWebhook(Webhooks.CursedCaptain, "⚓ CURSED CAPTAIN", "Cursed Captain", 255)
+        SendWebhook(Webhooks.CursedCaptain, " CURSED CAPTAIN", "Cursed Captain", 255)
     elseif not EntityExists("Cursed Captain") then
         EventState.Captain = false
     end
