@@ -66,12 +66,12 @@ local function SendWebhook(url, title, bossName, color)
                 },
                 {
                     name = "Trạng thái :",
-                    value = "✅ Đang hoạt động",
+                    value = "🟢",
                     inline = false
                 }
             },
             ["footer"] = {
-                ["text"] = "🌙 Saki Hub | " .. os.date("%H:%M")
+                ["text"] = " Saki Hub | " .. os.date("%H:%M")
             }
         }}
     }
