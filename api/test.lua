@@ -13,75 +13,11 @@ local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local placeId = game.PlaceId
 
-local function SendWebhook(url, title, desc, color)
-    if not url or url == "" then return end
-    local data = {
-        embeds = {{
-            title = title,
-            description = desc,
-            color = color,
-            fields = {
-                {
-                    name = "🧑‍💻 Players",
-                    value = string.format("`%d/%d`", #Players:GetPlayers(), Players.MaxPlayers),
-                    inline = true
-                },
-                {
-                    name = "🕒 Time",
-                    value = "`" .. Lighting.TimeOfDay .. "`",
-                    inline = true
-                }
-            },
-            footer = { text = "🌙 Saki Hub" },
-            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        }}
-    }
-    request({
-        Url = url,
-        Method = "POST",
-        Headers = { ["Content-Type"] = "application/json" },
-        Body = HttpService:JSONEncode(data)
-    })
-end
+local PlaceId = game.PlaceId
+local IsWorld1, IsWorld2, IsWorld3 = PlaceId == 2753915549, PlaceId == 4442272183, PlaceId == 7449423635
 
-local function GetJoinScript(jobId)
-    return ("**JobId:** `%s`\n> game:GetService(\"ReplicatedStorage\").__ServerBrowser:InvokeServer(\"teleport\", \"%s\")")
-        :format(tostring(jobId), tostring(jobId))
-end
-
-local function GetMoonPhase()
-    local sky = Lighting:FindFirstChild("Sky")
-    if not sky then return "Other" end
-    local id = tostring(sky.MoonTextureId)
-    if id:find("9709149431") then
-        return "Full"
-    elseif id:find("9709149052") or id:find("9709150401") then
-        return "Near"
-    else
-        return "Other"
-    end
-end
-
-local function Exists(name)
-    return Workspace.Enemies:FindFirstChild(name) or ReplicatedStorage:FindFirstChild(name)
-end
-
-local function CheckMystic()
-    return Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("MysticIsland")
-end
-
-local World1, World2, World3 = false, false, false
-if placeId == 2753915549 then
-    World1 = true
-elseif placeId == 4442272183 then
-    World2 = true
-elseif placeId == 7449423635 then
-    World3 = true
-end
-
-local State = {
+local EventState = {
     FullMoon = false,
     NearMoon = false,
     Mystic = false,
@@ -91,69 +27,167 @@ local State = {
     Captain = false
 }
 
+local MoonTextures = {
+    Full = "9709149431",
+    Near = {"9709149052", "9709150401"}
+}
+
+local function SendWebhook(url, title, bossName, color)
+    if not url or url == "" then return end
+    
+    local jobId = game.JobId
+    local currentTime = os.date("%H:%M:%S")
+    
+    local embed = {
+        ["embeds"] = {{
+            ["title"] = title,
+            ["description"] = "**" .. bossName .. " đã xuất hiện!**",
+            ["color"] = color,
+            ["fields"] = {
+                {
+                    name = "Time Of Day :",
+                    value = Lighting.TimeOfDay,
+                    inline = false
+                },
+                {
+                    name = "Players :",
+                    value = #Players:GetPlayers() .. "/" .. Players.MaxPlayers,
+                    inline = false
+                },
+                {
+                    name = "Job-Id :",
+                    value = jobId,
+                    inline = false
+                },
+                {
+                    name = "Script :",
+                    value = 'game:GetService("ReplicatedStorage").__ServerBrowser:InvokeServer("teleport", "'.. jobId ..'")',
+                    inline = false
+                },
+                {
+                    name = "Trạng thái :",
+                    value = "✅ Đang hoạt động",
+                    inline = false
+                }
+            },
+            ["footer"] = {
+                ["text"] = "🌙 Saki Hub | " .. os.date("%H:%M")
+            }
+        }}
+    }
+    
+    local requestFunc = http_request or request or syn and syn.request
+    if requestFunc then
+        requestFunc({
+            Url = url,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = HttpService:JSONEncode(embed)
+        })
+    else
+        warn("Không tìm thấy phương thức HTTP.")
+    end
+end
+
+local function GetMoonPhase()
+    local sky = Lighting:FindFirstChild("Sky")
+    if not sky then return "Other" end
+    
+    local moonTextureId = tostring(sky.MoonTextureId)
+    
+    if moonTextureId:find(MoonTextures.Full) then
+        return "Full"
+    end
+    
+    for _, textureId in ipairs(MoonTextures.Near) do
+        if moonTextureId:find(textureId) then
+            return "Near"
+        end
+    end
+    
+    return "Other"
+end
+
+local function EntityExists(entityName)
+    return Workspace.Enemies:FindFirstChild(entityName) ~= nil or 
+           ReplicatedStorage:FindFirstChild(entityName) ~= nil
+end
+
+local function CheckMysticIsland()
+    local map = Workspace:FindFirstChild("Map")
+    return map and map:FindFirstChild("MysticIsland") ~= nil
+end
+
+local function CheckWorld3Events()
+    local moonPhase = GetMoonPhase()
+    local hasMysticIsland = CheckMysticIsland()
+    
+    -- Moon Phase Checks
+    if moonPhase == "Full" and not EventState.FullMoon then
+        EventState.FullMoon = true
+        SendWebhook(Webhooks.FullMoon, "🌕 FULL MOON", "Full Moon", 65280)
+    elseif moonPhase ~= "Full" then
+        EventState.FullMoon = false
+    end
+    
+    if moonPhase == "Near" and not EventState.NearMoon then
+        EventState.NearMoon = true
+        SendWebhook(Webhooks.NearFullMoon, "🌖 4/5 MOON", "Near Full Moon", 16761035)
+    elseif moonPhase ~= "Near" then
+        EventState.NearMoon = false
+    end
+    
+    -- Mystic Island Check
+    if hasMysticIsland and not EventState.Mystic then
+        EventState.Mystic = true
+        SendWebhook(Webhooks.MysticIsland, "🌴 MYSTIC ISLAND", "Mystic Island", 3447003)
+    elseif not hasMysticIsland then
+        EventState.Mystic = false
+    end
+    
+    -- Boss Checks
+    if EntityExists("rip_indra True Form") and not EventState.Indra then
+        EventState.Indra = true
+        SendWebhook(Webhooks.RipIndra, "😈 RIP INDRA", "Rip Indra True Form", 16711680)
+    elseif not EntityExists("rip_indra True Form") then
+        EventState.Indra = false
+    end
+    
+    if EntityExists("Dough King") and not EventState.Dough then
+        EventState.Dough = true
+        SendWebhook(Webhooks.DoughKing, "🍩 DOUGH KING", "Dough King", 16753920)
+    elseif not EntityExists("Dough King") then
+        EventState.Dough = false
+    end
+end
+
+local function CheckWorld2Events()
+    if EntityExists("Darkbeard") and not EventState.Darkbeard then
+        EventState.Darkbeard = true
+        SendWebhook(Webhooks.Darkbeard, "💀 DARKBEARD", "Darkbeard", 11184810)
+    elseif not EntityExists("Darkbeard") then
+        EventState.Darkbeard = false
+    end
+    
+    if EntityExists("Cursed Captain") and not EventState.Captain then
+        EventState.Captain = true
+        SendWebhook(Webhooks.CursedCaptain, "⚓ CURSED CAPTAIN", "Cursed Captain", 255)
+    elseif not EntityExists("Cursed Captain") then
+        EventState.Captain = false
+    end
+end
+
+-- Main monitoring loop
 task.spawn(function()
     while task.wait(5) do
-        pcall(function()
-            local jobid = game.JobId
-            if World1 then return end
-
-            if World3 then
-                local moon = GetMoonPhase()
-                local mystic = CheckMystic()
-                local hasFull = (moon == "Full")
-                local hasNear = (moon == "Near")
-
-                if hasFull and not State.FullMoon then
-                    State.FullMoon = true
-                    SendWebhook(Webhooks.FullMoon, "🌕 FULL MOON", "**A Full Moon has appeared!**\n" .. GetJoinScript(jobid), 65280)
-                elseif not hasFull then
-                    State.FullMoon = false
-                end
-
-                if hasNear and not State.NearMoon then
-                    State.NearMoon = true
-                    SendWebhook(Webhooks.NearFullMoon, "🌖 4/5 MOON", "**The moon is nearly full!**\n" .. GetJoinScript(jobid), 16761035)
-                elseif not hasNear then
-                    State.NearMoon = false
-                end
-
-                if mystic and not State.Mystic then
-                    State.Mystic = true
-                    SendWebhook(Webhooks.MysticIsland, "🌴 MYSTIC ISLAND FOUND", "**Mystic Island has spawned!**\n" .. GetJoinScript(jobid), 3447003)
-                elseif not mystic then
-                    State.Mystic = false
-                end
-
-                if Exists("rip_indra True Form") and not State.Indra then
-                    State.Indra = true
-                    SendWebhook(Webhooks.RipIndra, "😈 RIP INDRA TRUE FORM", "**rip_indra True Form has appeared!**\n" .. GetJoinScript(jobid), 16711680)
-                elseif not Exists("rip_indra True Form") then
-                    State.Indra = false
-                end
-
-                if Exists("Dough King") and not State.Dough then
-                    State.Dough = true
-                    SendWebhook(Webhooks.DoughKing, "🍩 DOUGH KING FOUND", "**Dough King has spawned!**\n" .. GetJoinScript(jobid), 16753920)
-                elseif not Exists("Dough King") then
-                    State.Dough = false
-                end
-            end
-
-            if World2 then
-                if Exists("Darkbeard") and not State.Darkbeard then
-                    State.Darkbeard = true
-                    SendWebhook(Webhooks.Darkbeard, "💀 DARKBEARD FOUND", "**Darkbeard has spawned!**\n" .. GetJoinScript(jobid), 11184810)
-                elseif not Exists("Darkbeard") then
-                    State.Darkbeard = false
-                end
-
-                if Exists("Cursed Captain") and not State.Captain then
-                    State.Captain = true
-                    SendWebhook(Webhooks.CursedCaptain, "⚓ CURSED CAPTAIN FOUND", "**Cursed Captain is here!**\n" .. GetJoinScript(jobid), 255)
-                elseif not Exists("Cursed Captain") then
-                    State.Captain = false
-                end
-            end
-        end)
+        if IsWorld1 then continue end
+        
+        if IsWorld3 then
+            CheckWorld3Events()
+        elseif IsWorld2 then
+            CheckWorld2Events()
+        end
     end
 end)
