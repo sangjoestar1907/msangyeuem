@@ -32,7 +32,7 @@ local MoonTextures = {
     Near = {"9709149052", "9709150401"}
 }
 
-local function SendWebhook(url, title, bossName, color, timeRemaining)
+local function SendWebhook(url, title, bossName, color, timeRemaining, isBoss)
     if not url or url == "" then return end
     
     local jobId = game.JobId
@@ -60,6 +60,14 @@ local function SendWebhook(url, title, bossName, color, timeRemaining)
         }
     }
     
+    if isBoss then
+        table.insert(fields, 1, {
+            name = "Boss Name :",
+            value = bossName,
+            inline = false
+        })
+    end
+    
     if timeRemaining then
         table.insert(fields, {
             name = "Full Moon Time Remaining :",
@@ -71,7 +79,6 @@ local function SendWebhook(url, title, bossName, color, timeRemaining)
     local embed = {
         ["embeds"] = {{
             ["title"] = title,
-            ["description"] = "**" .. bossName .. " đã xuất hiện!**",
             ["color"] = color,
             ["fields"] = fields,
             ["footer"] = {
@@ -150,56 +157,63 @@ local function CheckWorld3Events()
     local moonPhase = GetMoonPhase()
     local hasMysticIsland = CheckMysticIsland()
     
+    -- Full Moon
     if moonPhase == "Full" and not EventState.FullMoon then
         EventState.FullMoon = true
         local timeRemaining = CalculateFullMoonTimeRemaining()
-        SendWebhook(Webhooks.FullMoon, " FULL MOON", "Full Moon", 65280, timeRemaining)
-    elseif moonPhase ~= "Full" then
-        EventState.FullMoon = false
+        SendWebhook(Webhooks.FullMoon, " Saki", "Full Moon", 65280, timeRemaining, false)
+    elseif moonPhase ~= "Full" and EventState.FullMoon then
+        EventState.FullMoon = false  -- Reset để gửi lại lần sau
     end
     
+    -- Near Moon
     if moonPhase == "Near" and not EventState.NearMoon then
         EventState.NearMoon = true
-        SendWebhook(Webhooks.NearFullMoon, " 4/5 MOON", "Near Full Moon", 16761035)
-    elseif moonPhase ~= "Near" then
-        EventState.NearMoon = false
+        SendWebhook(Webhooks.NearFullMoon, " Saki", "Near Full Moon", 16761035, nil, false)
+    elseif moonPhase ~= "Near" and EventState.NearMoon then
+        EventState.NearMoon = false  -- Reset để gửi lại lần sau
     end
     
+    -- Mystic Island
     if hasMysticIsland and not EventState.Mystic then
         EventState.Mystic = true
-        SendWebhook(Webhooks.MysticIsland, " MYSTIC ISLAND", "Mystic Island", 3447003)
-    elseif not hasMysticIsland then
-        EventState.Mystic = false
+        SendWebhook(Webhooks.MysticIsland, " Saki", "Mystic Island", 3447003, nil, false)
+    elseif not hasMysticIsland and EventState.Mystic then
+        EventState.Mystic = false  -- Reset để gửi lại lần sau
     end
     
+    -- Rip Indra
     if EntityExists("rip_indra True Form") and not EventState.Indra then
         EventState.Indra = true
-        SendWebhook(Webhooks.RipIndra, " RIP INDRA", "Rip Indra True Form", 16711680)
-    elseif not EntityExists("rip_indra True Form") then
-        EventState.Indra = false
+        SendWebhook(Webhooks.RipIndra, " Saki", "Rip Indra True Form", 16711680, nil, true)
+    elseif not EntityExists("rip_indra True Form") and EventState.Indra then
+        EventState.Indra = false  -- Reset để gửi lại lần sau
     end
     
+    -- Dough King
     if EntityExists("Dough King") and not EventState.Dough then
         EventState.Dough = true
-        SendWebhook(Webhooks.DoughKing, " DOUGH KING", "Dough King", 16753920)
-    elseif not EntityExists("Dough King") then
-        EventState.Dough = false
+        SendWebhook(Webhooks.DoughKing, " Saki", "Dough King", 16753920, nil, true)
+    elseif not EntityExists("Dough King") and EventState.Dough then
+        EventState.Dough = false  -- Reset để gửi lại lần sau
     end
 end
 
 local function CheckWorld2Events()
+    -- Darkbeard
     if EntityExists("Darkbeard") and not EventState.Darkbeard then
         EventState.Darkbeard = true
-        SendWebhook(Webhooks.Darkbeard, " DARKBEARD", "Darkbeard", 11184810)
-    elseif not EntityExists("Darkbeard") then
-        EventState.Darkbeard = false
+        SendWebhook(Webhooks.Darkbeard, " Saki", "Darkbeard", 11184810, nil, true)
+    elseif not EntityExists("Darkbeard") and EventState.Darkbeard then
+        EventState.Darkbeard = false  -- Reset để gửi lại lần sau
     end
     
+    -- Cursed Captain
     if EntityExists("Cursed Captain") and not EventState.Captain then
         EventState.Captain = true
-        SendWebhook(Webhooks.CursedCaptain, " CURSED CAPTAIN", "Cursed Captain", 255)
-    elseif not EntityExists("Cursed Captain") then
-        EventState.Captain = false
+        SendWebhook(Webhooks.CursedCaptain, " Saki", "Cursed Captain", 255, nil, true)
+    elseif not EntityExists("Cursed Captain") and EventState.Captain then
+        EventState.Captain = false  -- Reset để gửi lại lần sau
     end
 end
 
