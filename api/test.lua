@@ -119,17 +119,21 @@ local function CalculateFullMoonTimeRemaining()
     local timeRemaining = 0
     
     if currentTime >= 21 then
-        timeRemaining = (30 - currentTime) * 60
+        timeRemaining = 10 - (currentTime - 21)
     elseif currentTime >= 6 then
-        timeRemaining = (21 - currentTime) * 60
+        timeRemaining = 21 - currentTime + 10
     else
-        timeRemaining = (21 - currentTime) * 60
+        timeRemaining = 21 - currentTime + 10
     end
     
     local minutes = math.floor(timeRemaining)
     local seconds = math.floor((timeRemaining - minutes) * 60)
     
-    return string.format("%02d:%02d", minutes, seconds)
+    if minutes > 0 then
+        return tostring(minutes) .. " phút"
+    else
+        return tostring(seconds) .. " giây"
+    end
 end
 
 local function EntityExists(entityName)
@@ -149,35 +153,35 @@ local function CheckWorld3Events()
     if moonPhase == "Full" and not EventState.FullMoon then
         EventState.FullMoon = true
         local timeRemaining = CalculateFullMoonTimeRemaining()
-        SendWebhook(Webhooks.FullMoon, " chisaki", "Full Moon", 65280, timeRemaining)
+        SendWebhook(Webhooks.FullMoon, " FULL MOON", "Full Moon", 65280, timeRemaining)
     elseif moonPhase ~= "Full" then
         EventState.FullMoon = false
     end
     
     if moonPhase == "Near" and not EventState.NearMoon then
         EventState.NearMoon = true
-        SendWebhook(Webhooks.NearFullMoon, " chisaki", "Near Full Moon", 16761035)
+        SendWebhook(Webhooks.NearFullMoon, " 4/5 MOON", "Near Full Moon", 16761035)
     elseif moonPhase ~= "Near" then
         EventState.NearMoon = false
     end
     
     if hasMysticIsland and not EventState.Mystic then
         EventState.Mystic = true
-        SendWebhook(Webhooks.MysticIsland, " chisaki", "Mystic Island", 3447003)
+        SendWebhook(Webhooks.MysticIsland, " MYSTIC ISLAND", "Mystic Island", 3447003)
     elseif not hasMysticIsland then
         EventState.Mystic = false
     end
     
     if EntityExists("rip_indra True Form") and not EventState.Indra then
         EventState.Indra = true
-        SendWebhook(Webhooks.RipIndra, " chisaki", "Rip Indra True Form", 16711680)
+        SendWebhook(Webhooks.RipIndra, " RIP INDRA", "Rip Indra True Form", 16711680)
     elseif not EntityExists("rip_indra True Form") then
         EventState.Indra = false
     end
     
     if EntityExists("Dough King") and not EventState.Dough then
         EventState.Dough = true
-        SendWebhook(Webhooks.DoughKing, " chisaki", "Dough King", 16753920)
+        SendWebhook(Webhooks.DoughKing, " DOUGH KING", "Dough King", 16753920)
     elseif not EntityExists("Dough King") then
         EventState.Dough = false
     end
@@ -186,14 +190,14 @@ end
 local function CheckWorld2Events()
     if EntityExists("Darkbeard") and not EventState.Darkbeard then
         EventState.Darkbeard = true
-        SendWebhook(Webhooks.Darkbeard, " chisaki", "Darkbeard", 11184810)
+        SendWebhook(Webhooks.Darkbeard, " DARKBEARD", "Darkbeard", 11184810)
     elseif not EntityExists("Darkbeard") then
         EventState.Darkbeard = false
     end
     
     if EntityExists("Cursed Captain") and not EventState.Captain then
         EventState.Captain = true
-        SendWebhook(Webhooks.CursedCaptain, " chisaki", "Cursed Captain", 255)
+        SendWebhook(Webhooks.CursedCaptain, " CURSED CAPTAIN", "Cursed Captain", 255)
     elseif not EntityExists("Cursed Captain") then
         EventState.Captain = false
     end
