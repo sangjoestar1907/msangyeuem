@@ -29,198 +29,153 @@ local EventState = {
 
 local MoonTextures = {
     Full = "9709149431",
-    Near = {"9709149052", "9709150401"}
+    Near = "9709149052"
 }
 
 local function SendWebhook(url, title, bossName, color, timeRemaining, isBoss)
     if not url or url == "" then return end
-    
     local jobId = game.JobId
-    
     local fields = {
-        {
-            name = "Time Of Day :",
-            value = Lighting.TimeOfDay,
-            inline = false
-        },
-        {
-            name = "Players :",
-            value = #Players:GetPlayers() .. "/" .. Players.MaxPlayers,
-            inline = false
-        },
-        {
-            name = "Job-Id :",
-            value = jobId,
-            inline = false
-        },
-        {
-            name = "Script :",
-            value = 'game:GetService("ReplicatedStorage").__ServerBrowser:InvokeServer("teleport", "'.. jobId ..'")',
-            inline = false
-        }
+        { name = "Time Of Day :", value = Lighting.TimeOfDay, inline = false },
+        { name = "Players :", value = #Players:GetPlayers() .. "/" .. Players.MaxPlayers, inline = false },
+        { name = "Job-Id :", value = jobId, inline = false },
+        { name = "Script :", value = 'game:GetService("ReplicatedStorage").__ServerBrowser:InvokeServer("teleport", "' .. jobId .. '")', inline = false },
     }
-    
     if isBoss then
-        table.insert(fields, 1, {
-            name = "Boss Name :",
-            value = bossName,
-            inline = false
-        })
+        table.insert(fields, 1, { name = "Boss Name :", value = bossName, inline = false })
     end
-    
     if timeRemaining then
-        table.insert(fields, {
-            name = "Full Moon Time Remaining :",
-            value = timeRemaining,
-            inline = false
-        })
+        table.insert(fields, { name = "Full Moon Time Remaining :", value = timeRemaining, inline = false })
     end
-    
+
     local embed = {
         ["embeds"] = {{
             ["title"] = title,
             ["color"] = color,
             ["fields"] = fields,
-            ["footer"] = {
-                ["text"] = " Saki Hub | " .. os.date("%H:%M")
-            }
+            ["footer"] = { ["text"] = "Saki Hub | " .. os.date("%H:%M:%S") }
         }}
     }
-    
-    local requestFunc = http_request or request or syn and syn.request
-    if requestFunc then
-        requestFunc({
+
+    local req = http_request or request or syn and syn.request
+    if req then
+        req({
             Url = url,
             Method = "POST",
-            Headers = {
-                ["Content-Type"] = "application/json"
-            },
+            Headers = { ["Content-Type"] = "application/json" },
             Body = HttpService:JSONEncode(embed)
         })
-    else
-        warn("Không tìm thấy phương thức HTTP.")
     end
+end
+
+local FullMoonStartTime = nil
+local FullMoonDuration = 9 * 60
+
+local function MarkFullMoonStart()
+    FullMoonStartTime = os.clock()
+end
+
+local function CalculateFullMoonTimeRemaining()
+    if not FullMoonStartTime then
+        return "Không xác định"
+    end
+    local elapsed = os.clock() - FullMoonStartTime
+    local remaining = math.max(0, FullMoonDuration - elapsed)
+    local minutes = math.floor(remaining / 60)
+    local seconds = math.floor(remaining % 60)
+    return string.format("%d phút %d giây", minutes, seconds)
+end
+
+local function EntityExists(name)
+    return Workspace.Enemies:FindFirstChild(name) or ReplicatedStorage:FindFirstChild(name)
+end
+
+local function CheckMysticIsland()
+    local map = Workspace:FindFirstChild("Map")
+    return map and map:FindFirstChild("MysticIsland")
 end
 
 local function GetMoonPhase()
     local sky = Lighting:FindFirstChild("Sky")
     if not sky then return "Other" end
-    
-    local moonTextureId = tostring(sky.MoonTextureId)
-    
-    if moonTextureId:find(MoonTextures.Full) then
-        return "Full"
-    end
-    
-    for _, textureId in ipairs(MoonTextures.Near) do
-        if moonTextureId:find(textureId) then
+    local texture = tostring(sky.MoonTextureId)
+    local time = Lighting:GetMinutesAfterMidnight()
+    if texture:find(MoonTextures.Full) then
+        if (time >= 1080 and time <= 1440) or (time <= 180) then
+            return "Full"
+        else
             return "Near"
         end
-    end
-    
-    return "Other"
-end
-
-local function CalculateFullMoonTimeRemaining()
-    local currentTime = Lighting.ClockTime
-    local timeRemaining = 0
-    
-    if currentTime >= 21 then
-        timeRemaining = 10 - (currentTime - 21)
-    elseif currentTime >= 6 then
-        timeRemaining = 21 - currentTime + 10
+    elseif texture:find(MoonTextures.Near) then
+        return "Near"
     else
-        timeRemaining = 21 - currentTime + 10
+        return "Other"
     end
-    
-    local minutes = math.floor(timeRemaining)
-    local seconds = math.floor((timeRemaining - minutes) * 60)
-    
-    if minutes > 0 then
-        return tostring(minutes) .. " phút"
-    else
-        return tostring(seconds) .. " giây"
-    end
-end
-
-local function EntityExists(entityName)
-    return Workspace.Enemies:FindFirstChild(entityName) ~= nil or 
-           ReplicatedStorage:FindFirstChild(entityName) ~= nil
-end
-
-local function CheckMysticIsland()
-    local map = Workspace:FindFirstChild("Map")
-    return map and map:FindFirstChild("MysticIsland") ~= nil
 end
 
 local function CheckWorld3Events()
     local moonPhase = GetMoonPhase()
     local hasMysticIsland = CheckMysticIsland()
-    
-    -- Full Moon
+
     if moonPhase == "Full" and not EventState.FullMoon then
         EventState.FullMoon = true
+        MarkFullMoonStart()
+        task.wait(1)
         local timeRemaining = CalculateFullMoonTimeRemaining()
-        SendWebhook(Webhooks.FullMoon, " Saki", "Full Moon", 65280, timeRemaining, false)
+        SendWebhook(Webhooks.FullMoon, "Saki", "Full Moon", 65280, timeRemaining, false)
     elseif moonPhase ~= "Full" and EventState.FullMoon then
-        EventState.FullMoon = false  -- Reset để gửi lại lần sau
+        EventState.FullMoon = false
+        FullMoonStartTime = nil
     end
-    
-    -- Near Moon
+
     if moonPhase == "Near" and not EventState.NearMoon then
         EventState.NearMoon = true
-        SendWebhook(Webhooks.NearFullMoon, " Saki", "Near Full Moon", 16761035, nil, false)
+        SendWebhook(Webhooks.NearFullMoon, "Saki", "Near Full Moon", 16761035, nil, false)
     elseif moonPhase ~= "Near" and EventState.NearMoon then
-        EventState.NearMoon = false  -- Reset để gửi lại lần sau
+        EventState.NearMoon = false
     end
-    
-    -- Mystic Island
+
     if hasMysticIsland and not EventState.Mystic then
         EventState.Mystic = true
-        SendWebhook(Webhooks.MysticIsland, " Saki", "Mystic Island", 3447003, nil, false)
+        SendWebhook(Webhooks.MysticIsland, "Saki", "Mystic Island", 3447003, nil, false)
     elseif not hasMysticIsland and EventState.Mystic then
-        EventState.Mystic = false  -- Reset để gửi lại lần sau
+        EventState.Mystic = false
     end
-    
-    -- Rip Indra
+
     if EntityExists("rip_indra True Form") and not EventState.Indra then
         EventState.Indra = true
-        SendWebhook(Webhooks.RipIndra, " Saki", "Rip Indra True Form", 16711680, nil, true)
+        SendWebhook(Webhooks.RipIndra, "Saki", "Rip Indra True Form", 16711680, nil, true)
     elseif not EntityExists("rip_indra True Form") and EventState.Indra then
-        EventState.Indra = false  -- Reset để gửi lại lần sau
+        EventState.Indra = false
     end
-    
-    -- Dough King
+
     if EntityExists("Dough King") and not EventState.Dough then
         EventState.Dough = true
-        SendWebhook(Webhooks.DoughKing, " Saki", "Dough King", 16753920, nil, true)
+        SendWebhook(Webhooks.DoughKing, "Saki", "Dough King", 16753920, nil, true)
     elseif not EntityExists("Dough King") and EventState.Dough then
-        EventState.Dough = false  -- Reset để gửi lại lần sau
+        EventState.Dough = false
     end
 end
 
 local function CheckWorld2Events()
-    -- Darkbeard
     if EntityExists("Darkbeard") and not EventState.Darkbeard then
         EventState.Darkbeard = true
-        SendWebhook(Webhooks.Darkbeard, " Saki", "Darkbeard", 11184810, nil, true)
+        SendWebhook(Webhooks.Darkbeard, "Saki", "Darkbeard", 11184810, nil, true)
     elseif not EntityExists("Darkbeard") and EventState.Darkbeard then
-        EventState.Darkbeard = false  -- Reset để gửi lại lần sau
+        EventState.Darkbeard = false
     end
-    
-    -- Cursed Captain
+
     if EntityExists("Cursed Captain") and not EventState.Captain then
         EventState.Captain = true
-        SendWebhook(Webhooks.CursedCaptain, " Saki", "Cursed Captain", 255, nil, true)
+        SendWebhook(Webhooks.CursedCaptain, "Saki", "Cursed Captain", 255, nil, true)
     elseif not EntityExists("Cursed Captain") and EventState.Captain then
-        EventState.Captain = false  -- Reset để gửi lại lần sau
+        EventState.Captain = false
     end
 end
 
 task.spawn(function()
     while task.wait(5) do
         if IsWorld1 then continue end
-        
         if IsWorld3 then
             CheckWorld3Events()
         elseif IsWorld2 then
